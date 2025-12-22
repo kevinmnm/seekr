@@ -131,6 +131,7 @@ RUN echo "Running common build flow of AnythingLLM image for all architectures"
 
 USER anythingllm
 WORKDIR /app
+RUN corepack enable && corepack prepare yarn@3.3.1 --activate
 
 # Install & Build frontend layer
 # Use BUILDPLATFORM to run on the native host architecture (not emulated).
@@ -139,7 +140,7 @@ WORKDIR /app
 FROM --platform=$BUILDPLATFORM node:18-slim AS frontend-build
 WORKDIR /app/frontend
 RUN corepack enable && corepack prepare yarn@3.3.1 --activate
-COPY ./frontend/package.json ./frontend/yarn.lock ./
+COPY ./frontend/package.json ./frontend/yarn.lock ./frontend/.yarnrc.yml ./frontend/.yarn ./
 RUN yarn install --network-timeout 100000 && yarn cache clean
 COPY ./frontend/ ./
 RUN yarn build

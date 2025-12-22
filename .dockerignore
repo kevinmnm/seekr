@@ -4,6 +4,7 @@
 **/collector/hotdir/**
 **/collector/outputs/**
 **/node_modules/
+**/.yarn/install-state.gz
 **/dist/
 **/v-env/
 **/__pycache__/
