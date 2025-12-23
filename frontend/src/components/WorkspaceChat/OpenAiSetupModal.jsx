@@ -73,10 +73,6 @@ export default function OpenAiSetupModal({ isOpen, onConfigured = () => {} }) {
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
               />
-              <p className="text-xs text-white/50">
-                We store keys securely in your environment configuration. You
-                can rotate them any time from General Settings → LLM Preference.
-              </p>
             </div>
 
             {error && (

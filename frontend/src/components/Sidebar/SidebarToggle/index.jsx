@@ -14,7 +14,8 @@ const SIDEBAR_TOGGLE_STORAGE_KEY = "anythingllm_sidebar_toggle";
 function previousSidebarState() {
   const previousState = window.localStorage.getItem(SIDEBAR_TOGGLE_STORAGE_KEY);
   if (previousState === "closed") return false;
-  return true;
+  if (previousState === "open") return true;
+  return false;
 }
 
 export function useSidebarToggle() {
