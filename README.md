@@ -91,7 +91,7 @@ Immediately after the key modal closes, you’ll see the **Podcast Transcript Up
 
 ### Triggering the Agent Flow
 
-1. Open the **brain** icon at the bottom, pick a high-context OpenAI model (GPT‑4o, GPT‑4.1, etc.), and click **Use this model**.
+1. Open the **brain** icon at the bottom, pick a high-context OpenAI model and click **Use this model**.
    ![alt text](readmeimg/image-5.png)
 2. In the chat input field, try multiple different prompts until the pre-configured agent flow runs. Some example prompts are:
 
