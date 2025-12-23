@@ -82,25 +82,25 @@ The repo already includes a working flow (`flow_c6bef2ce-f82f-40cf-b9b8-7603ded6
 ### Supplying the OpenAI Key
 
 On first load you will be blocked by an **OpenAI Settings** modal. The key is not persisted, so you may be prompted again after a hard refresh. Paste the key and click **Save API Key** to proceed.
-![alt text](image-0.png)
+![alt text](readmeimg/image-0.png)
 
 ### Uploading Podcast Transcripts
 
 Immediately after the key modal closes, you’ll see the **Podcast Transcript Upload** dialog. Drag in one or more transcript files (plain text, JSON, DOCX, etc.) and click **Upload transcript**. The server wipes `server/storage/podcast-transcripts/` whenever the chat screen reloads, so re-upload if you refresh.
-![alt text](image-1.png)
+![alt text](readmeimg/image-1.png)
 
 ### Triggering the Agent Flow
 
 1. Open the **brain** icon at the bottom, pick a high-context OpenAI model (GPT‑4o, GPT‑4.1, etc.), and click **Use this model**.
-   ![alt text](image-5.png)
+   ![alt text](readmeimg/image-5.png)
 2. In the chat input field, try multiple different prompts until the pre-configured agent flow runs. Some example prompts are:
 
 - `Process Podcast transcripts by triggering flow_c6bef2ce-f82f-40cf-b9b8-7603ded6701c`
 - `Process uploaded Podcast transcripts`
-  ![alt text](image-3.png)
+  ![alt text](readmeimg/image-3.png)
 
 3. Expand the agent reasoning panel to watch each step (normalization, summary, fact-check, Markdown assembly) or tail the server logs for structured output.
-   ![alt text](image-4.png)
+   ![alt text](readmeimg/image-4.png)
 
 ---
 
@@ -109,14 +109,14 @@ Immediately after the key modal closes, you’ll see the **Podcast Transcript Up
 Adding context improves the mock fact-check:
 
 1. Click the upload icon in the left sidebar.
-   ![alt text](image-6.png)
+   ![alt text](readmeimg/image-6.png)
 2. Use the drag-and-drop area to upload supporting docs (PDF, HTML, Markdown, etc.).
-   ![alt text](image-7.png)
+   ![alt text](readmeimg/image-7.png)
 3. Move uploaded files into the active workspace by clicking **Move to Workspace** and then click **Save and Embed**.
-   ![alt text](image-8.png)
-   ![alt text](image-9.png)
+   ![alt text](readmeimg/image-8.png)
+   ![alt text](readmeimg/image-9.png)
 4. Pin documents so the agent ranks them higher during RAG retrieval.
-   ![alt text](image-10.png)
+   ![alt text](readmeimg/image-10.png)
 
 ---
 
