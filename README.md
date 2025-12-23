@@ -92,13 +92,15 @@ Immediately after the key modal closes, you’ll see the **Podcast Transcript Up
 ### Triggering the Agent Flow
 
 1. Open the **brain** icon at the bottom, pick a high-context OpenAI model (GPT‑4o, GPT‑4.1, etc.), and click **Use this model**.
-![alt text](image-5.png)
+   ![alt text](image-5.png)
 2. In the chat input field, try multiple different prompts until the pre-configured agent flow runs. Some example prompts are:
+
 - `Process Podcast transcripts by triggering flow_c6bef2ce-f82f-40cf-b9b8-7603ded6701c`
 - `Process uploaded Podcast transcripts`
-![alt text](image-3.png)
+  ![alt text](image-3.png)
+
 3. Expand the agent reasoning panel to watch each step (normalization, summary, fact-check, Markdown assembly) or tail the server logs for structured output.
-![alt text](image-4.png)
+   ![alt text](image-4.png)
 
 ---
 
@@ -107,90 +109,89 @@ Immediately after the key modal closes, you’ll see the **Podcast Transcript Up
 Adding context improves the mock fact-check:
 
 1. Click the upload icon in the left sidebar.
-![alt text](image-6.png)
+   ![alt text](image-6.png)
 2. Use the drag-and-drop area to upload supporting docs (PDF, HTML, Markdown, etc.).
-![alt text](image-7.png)
+   ![alt text](image-7.png)
 3. Move uploaded files into the active workspace by clicking **Move to Workspace** and then click **Save and Embed**.
-![alt text](image-8.png)
-![alt text](image-9.png)
+   ![alt text](image-8.png)
+   ![alt text](image-9.png)
 4. Pin documents so the agent ranks them higher during RAG retrieval.
-![alt text](image-10.png)
+   ![alt text](image-10.png)
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Likely Cause | Fix |
-| --- | --- | --- |
-| Agent outputs boilerplate summary | Configured agent flow JSON not correctly parsed by LLM | Refresh the page and try again. |
-| “OpenAI API key must be provided to use agents” | Key is missing/expired | Refresh the page and make sure to provide valid key. The key isn’t persisted upon container restart. |
-| “Exceeded content limit” | Selected model has small context window | Refresh the page and pick a higher-context model via the brain icon. |
+| Symptom                                         | Likely Cause                                           | Fix                                                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Agent outputs boilerplate summary               | Configured agent flow JSON not correctly parsed by LLM | Refresh the page and try again.                                                                      |
+| “OpenAI API key must be provided to use agents” | Key is missing/expired                                 | Refresh the page and make sure to provide valid key. The key isn’t persisted upon container restart. |
+| “Exceeded content limit”                        | Selected model has small context window                | Refresh the page and pick a higher-context model via the brain icon.                                 |
 
 ---
 
 ## Deployment Strategy
 
-> **Goal:** Run the podcast-assessment workflow on Google Cloud Platform with predictable cost, high availability, and strong observability.
+> **This is a high-level overview and would love to dive deeper if opportunity allows!**
 
-### 1. Target Architecture
+### Architecture Overview
 
-| Layer | GCP Service | Notes |
-| --- | --- | --- |
-| **Compute** | Google Kubernetes Engine (Autopilot or Standard) | One cluster hosts separate Deployments for `frontend`, `server`, and `collector`. HPAs react to CPU usage and queue depth. Autopilot simplifies node management; Standard mode lets you carve GPU/high-memory pools for embedding-heavy work. |
-| **Data Plane** | Cloud SQL for PostgreSQL (with `pgvector`) | Replace SQLite/LanceDB. Use HA configuration with automatic failover and PITR. |
-| **Object Storage** | Google Cloud Storage | Stores transcript uploads, knowledge-bank files, and generated briefs. Enable versioning and lifecycle policies. |
-| **Caching / Queues** | Memorystore for Redis + Cloud Tasks / Pub/Sub | Redis backs caching + ephemeral queues; Cloud Tasks or Pub/Sub handles long-running agent jobs asynchronously. |
-| **Networking** | Google Cloud Load Balancing + Cloud Armor + Traefik Ingress | External HTTPS LB fronts the cluster, but inside GKE we run Traefik with ACME integration to issue/renew free TLS certificates for multiple FQDNs. Cloud Armor provides WAF rules; internal services remain behind ClusterIP or internal load balancers. |
-| **Secrets** | Secret Manager + Workload Identity | Store OpenAI keys and DB credentials; workloads access them via Workload Identity without long-lived service-account keys. |
+```mermaid
+graph TD
+    Users -->|HTTPS| GCLB[Google Cloud Load Balancer]
+    GCLB --> Traefik[Traefik Ingress]
+    Traefik --> Frontend[Frontend Pods]
+    Traefik --> Server[Server Pods]
+    Frontend --> Server[Server Pods]
+    Server --> Collector[Collector Pods]
+    Server -->|Queries| CloudSQL[(Cloud SQL + pgvector)]
+    Server -->|Documents| GCS[(Google Cloud Storage)]
+    Server --> Redis[(Memorystore for Redis)]
+    Collector --> Redis
+    Collector -->|Jobs| Tasks[Cloud Tasks / Pub/Sub]
+    Secrets[Secrets Store] --> Server
+    Secrets --> Collector
+```
 
-### 2. Build & Release Automation
+- **Compute** – Google Kubernetes Engine runs separate Deployments for `frontend`, `server`, and `collector`. Horizontal Pod Autoscalers watch CPU and queue metrics. Autopilot sizes nodes automatically. Standard mode keeps you in control when you need custom GPU or high-memory pools.
+- **Data** – Cloud SQL for PostgreSQL with `pgvector` replaces SQLite/LanceDB. Use the managed primary/standby setup first and only explore sharding once a single database truly becomes a bottleneck.
+- **Storage** – Google Cloud Storage holds transcript uploads, knowledge-bank files, and generated briefs. Turn on versioning and lifecycle policies to manage retention automatically.
+- **Messaging** – Memorystore for Redis handles caching and short-lived queues, while Cloud Tasks or Pub/Sub drives longer-running agent jobs off the request path.
+- **Networking** – Google Cloud Load Balancing forwards HTTPS traffic into the cluster. Traefik terminates TLS per hostname and routes requests. Internal services stay on private addresses.
+- **Secrets** – Keep sensitive data secure by loading keys at runtime instead of baking them into images.
 
-- Containerize each subproject (`frontend/`, `server/`, `collector/`) with a shared base Node image.
-- Build and publish versioned Helm charts (component-level or umbrella) to Google Artifact Registry (OCI format).
-- Use Google Cloud Build or GitHub Actions to lint/test, build Docker images, package/push charts, and promote tagged releases.
-- Argo CD or Helmfile watches the registry and applies `helm upgrade` rollouts to GKE (blue/green or canary).
+### Build & Release
 
-### 3. Scalability
+- Containerize `frontend`, `server`, and `collector` with a shared Node base image to keep builds consistent.
+- Publish Docker images and Helm charts to Google Artifact Registry (OCI).
+- Use Google Cloud Build or GitHub Actions to lint, test, build, and push artifacts. Promote tagged releases through staging before production.
+- Let Argo CD or Helmfile watch the registry and apply `helm upgrade` rollouts using blue/green or canary strategies.
 
-- **Horizontal scaling:** HPAs driven by Cloud Monitoring metrics (CPU, custom queue length). Collector workers scale on Redis/Cloud Tasks backlog.
-- **Vertical scaling:** Autopilot auto-provisions resources; Standard clusters add GPU/high-memory node pools for embedding-heavy workloads.
-- **Async workloads:** Long agent runs enqueue work to Cloud Tasks or Pub/Sub; dedicated worker pods consume queues without blocking user-facing pods.
+### Scaling & Reliability
 
-### 4. High Availability & Fault Tolerance
+- Scale pods horizontally based on Cloud Monitoring metrics (CPU, queue backlog). Collector workers follow Redis or Cloud Tasks depth.
+- Lean on Autopilot for automatic vertical sizing; Standard clusters add GPU or RAM-heavy pools when you need them.
+- Offload long jobs to Cloud Tasks or Pub/Sub so user-facing pods stay responsive.
+- Run regional GKE clusters across zones, add Pod Disruption Budgets, and keep readiness/liveness probes tuned so unhealthy pods restart quickly.
+- Enable Cloud SQL HA, automated backups, and point-in-time recovery. Keep GCS versioning on for transcript recovery.
 
-- Regional GKE clusters span multiple zones; Pod Disruption Budgets keep replicas online during upgrades.
-- Cloud SQL HA with automated backups and point-in-time recovery.
-- GCS bucket versioning + lifecycle rules provide durable storage while controlling cost.
-- Readiness and liveness probes restart unhealthy pods quickly.
+### Observability & Operations
 
-### 5. Observability & Operations
+- Capture metrics with Managed Prometheus (or OSS) and surface dashboards in Cloud Monitoring or Grafana.
+- Centralize logs so they're searchable, and add basic alerts (e.g. email or Slack) when errors spike.
+- Turn on request-level logging at the ingress or reverse proxy for traceability.
+- Document clear steps for OpenAI key rotation, Helm rollbacks, transcript restores, and Cloud SQL failover.
 
-- **Metrics:** Managed Prometheus (or OSS Prometheus) feeds dashboards in Cloud Monitoring / Grafana (LLM latency, transcript ingestion rate, queue backlog).
-- **Logging:** Ship structured logs to Cloud Logging; configure alerts via Cloud Monitoring, PagerDuty, or Opsgenie.
-- **Tracing:** Use Cloud Trace / Cloud Profiler or OpenTelemetry for end-to-end visibility from HTTP request through agent execution.
-- **Runbooks:** Document OpenAI key rotation (Secret Manager), Helm rollbacks, transcript restoration from GCS, and Cloud SQL failover drills.
+### Security & Compliance
 
-### 6. Security & Compliance
+- Use mTLS inside the cluster so services authenticate each other before exchanging data.
+- Limit who can reach admin tooling by combining simple firewall rules with IAM restrictions.
+- Keep Cloud SQL and Memorystore private using VPC Service Controls, Private Service Connect, and firewall policies.
+- Keep IAM tight so each service only has the access it needs. Rotate secrets routinely. Bake Trivy (images) and Semgrep (code) scans into CI/CD.
 
-- Cloud Armor shields the HTTPS load balancer; Identity-Aware Proxy or BeyondCorp restricts admin access.
-- Encrypt data at rest (Cloud SQL CMEK, GCS CMEK, Artifact Registry CMEK) and enforce TLS in transit. Add mTLS inside the cluster with Anthos Service Mesh/Istio if zero-trust is required.
-- Use VPC Service Controls, Private Service Connect, and firewall rules to keep Cloud SQL/Memorystore off the public internet.
-- Apply least-privilege IAM with Workload Identity; rotate secrets centrally in Secret Manager.
-- Bake security scans into CI/CD: run Trivy against every image build and Semgrep against the codebase before packaging/publishing Helm charts. Gate releases on a clean scan or approved exceptions.
+### Cost Management
 
-### 7. Cost Controls
-
-- Autopilot right-sizes pods automatically but charges a premium per vCPU/GB; Standard clusters can mix on-demand and Spot nodes for batch/worker workloads when you need tighter cost control.
-- GCS lifecycle policies archive or delete stale transcripts; Cloud SQL disk auto-scaling and alerts prevent overprovisioning.
-- Budgets and quota alerts in Cloud Monitoring track OpenAI spend, GKE usage, and Cloud SQL consumption.
-- Scheduled scale-down (KEDA or CronJobs) lowers replica counts during predictable off-hours.
-
-This GCP-first blueprint delivers:
-
-- **Resilience** (regional GKE, HA Cloud SQL, versioned GCS),
-- **Performance** (autoscaled pods, asynchronous job handling, pgvector-backed lookup),
-- **Visibility** (Cloud Monitoring, Logging, Trace),
-- **Security** (Secret Manager, Workload Identity, Cloud Armor), and
-- **Predictable costs** (Autopilot/Spot scaling, lifecycle policies, budgets).
-
-It satisfies the assessment requirements and leaves room to add new flows, metadata sources, or tenants without re-architecting the platform.***
+- Autopilot right-sizes pods but bills per vCPU/GB, while Standard clusters can mix on-demand and Spot nodes for worker jobs.
+- Apply GCS lifecycle rules to archive or drop stale transcripts and watch Cloud SQL disk auto-scaling.
+- Track spend with budgets and quota alerts for OpenAI usage, GKE resources, and Cloud SQL consumption.
+- Schedule scale-down windows (KEDA or CronJobs) to trim replicas during predictable quiet hours.
