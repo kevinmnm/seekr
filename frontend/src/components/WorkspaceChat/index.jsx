@@ -13,6 +13,8 @@ import {
 } from "../contexts/TTSProvider";
 import PodcastTranscripts from "@/models/podcastTranscripts";
 import PodcastTranscriptUploadModal from "./PodcastTranscriptUploadModal";
+import System from "@/models/system";
+import OpenAiSetupModal from "./OpenAiSetupModal";
 
 export default function WorkspaceChat({ loading, workspace }) {
   useWatchForAutoPlayAssistantTTSResponse();
@@ -22,6 +24,8 @@ export default function WorkspaceChat({ loading, workspace }) {
   const [transcriptModalOpen, setTranscriptModalOpen] = useState(true);
   const [resettingTranscripts, setResettingTranscripts] = useState(true);
   const [resetError, setResetError] = useState(null);
+  const [checkingOpenAi, setCheckingOpenAi] = useState(true);
+  const [openAiModalOpen, setOpenAiModalOpen] = useState(false);
 
   const prepareTranscriptStorage = useCallback(async () => {
     setTranscriptModalOpen(true);
@@ -38,13 +42,27 @@ export default function WorkspaceChat({ loading, workspace }) {
     }
   }, []);
 
+  const ensureOpenAiKey = useCallback(async () => {
+    setCheckingOpenAi(true);
+    const settings = (await System.keys()) || {};
+    const missing = !settings?.OpenAiKey;
+    setOpenAiModalOpen(missing);
+    setCheckingOpenAi(false);
+    return !missing;
+  }, []);
+
   useEffect(() => {
+    ensureOpenAiKey();
+  }, [ensureOpenAiKey]);
+
+  useEffect(() => {
+    if (checkingOpenAi || openAiModalOpen) return;
     prepareTranscriptStorage();
-  }, [prepareTranscriptStorage]);
+  }, [prepareTranscriptStorage, checkingOpenAi, openAiModalOpen]);
 
   useEffect(() => {
     async function getHistory() {
-      if (loading) return;
+      if (loading || checkingOpenAi || openAiModalOpen) return;
       if (!workspace?.slug) {
         setLoadingHistory(false);
         return false;
@@ -58,11 +76,11 @@ export default function WorkspaceChat({ loading, workspace }) {
       setLoadingHistory(false);
     }
     getHistory();
-  }, [workspace, loading]);
+  }, [workspace, loading, checkingOpenAi, openAiModalOpen]);
 
   const renderTranscriptModal = (
     <PodcastTranscriptUploadModal
-      isOpen={transcriptModalOpen}
+      isOpen={!openAiModalOpen && transcriptModalOpen}
       resetting={resettingTranscripts}
       resetError={resetError}
       onRetryReset={prepareTranscriptStorage}
@@ -73,10 +91,23 @@ export default function WorkspaceChat({ loading, workspace }) {
     />
   );
 
-  if (loadingHistory)
+  const renderOpenAiModal = (
+    <OpenAiSetupModal
+      isOpen={openAiModalOpen}
+      onConfigured={async () => {
+        const configured = await ensureOpenAiKey();
+        if (configured) {
+          setOpenAiModalOpen(false);
+        }
+      }}
+    />
+  );
+
+  if (checkingOpenAi || loadingHistory)
     return (
       <>
         <LoadingChat />
+        {renderOpenAiModal}
         {renderTranscriptModal}
       </>
     );
@@ -115,6 +146,7 @@ export default function WorkspaceChat({ loading, workspace }) {
           </ModalWrapper>
         )}
         <LoadingChat />
+        {renderOpenAiModal}
         {renderTranscriptModal}
       </>
     );
@@ -126,6 +158,7 @@ export default function WorkspaceChat({ loading, workspace }) {
       <DnDFileUploaderProvider workspace={workspace} threadSlug={threadSlug}>
         <ChatContainer workspace={workspace} knownHistory={history} />
       </DnDFileUploaderProvider>
+      {renderOpenAiModal}
       {renderTranscriptModal}
     </TTSProvider>
   );

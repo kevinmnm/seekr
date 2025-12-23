@@ -15,7 +15,6 @@ function podcastTranscriptEndpoints(app) {
   if (!app) return;
 
   app.get("/podcast-transcripts/all", async (_request, response) => {
-    console.log('hi')
     try {
       const directory = ensurePodcastTranscriptStorage();
       const entries = await fs.promises.readdir(directory, {
