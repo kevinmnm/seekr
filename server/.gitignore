@@ -18,7 +18,7 @@ storage/direct-uploads
 logs/server.log
 *.db
 *.db-journal
-storage/lancedb
+# storage/lancedb
 public/
 
 # For legacy copies of repo
