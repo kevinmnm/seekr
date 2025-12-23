@@ -88,7 +88,7 @@
       "config": {
         "instruction": "Compile the final deliverable in Markdown.\nInputs:\n- episode_catalog: ${episode_catalog}\n- deliverables: ${deliverables}\n- fact_matrix: ${fact_matrix}\nIf episode_catalog.error exists or deliverables.episodes is empty, output a short Markdown note describing the issue (e.g., \"No transcripts available to summarize.\") and stop.\nStructure:\n# Podcast Intelligence Brief\n\nFor each episode in order:\n## {Title}\n- Guests: comma list\n\n**Summary**\n{summary}\n\n**Top 5 Takeaways**\n- ...\n\n**Notable Quotes**\n> \"quote\" \u2014 speaker (timestamp)\n\n**Fact Check Review**\n| Claim | Status | Method | Notes | Confidence |\n| --- | --- | --- | --- | --- |\n(populate using fact_matrix, confidence to two decimals; if no claims, include a single row stating \"No claims flagged\")\n\nAfter episodes, add:\n## Cross-Episode Observations\nBullet list from episode_catalog.observations (omit section if empty).\n\nTone must stay consistent with ${brand_voice}.",
         "resultVariable": "podcast_assessment_brief",
-        "directOutput": false
+        "directOutput": true
       }
     }
   ]
